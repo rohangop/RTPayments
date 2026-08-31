@@ -200,7 +200,7 @@ resource paymentQueue 'Microsoft.ServiceBus/namespaces/queues@2022-10-01-preview
   parent: serviceBus
   name: paymentQueueName
   properties: {
-    maxDeliveryCount: 10
+    maxDeliveryCount: 5
     deadLetteringOnMessageExpiration: true
     requiresDuplicateDetection: true
     duplicateDetectionHistoryTimeWindow: 'PT10M'

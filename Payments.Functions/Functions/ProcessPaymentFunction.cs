@@ -72,5 +72,9 @@ public sealed class ProcessPaymentFunction
             payment.PaymentId,
             providerResult.FailureReason ?? "Payment provider rejected the payment.",
             cancellationToken);
+
+        // Ideally, retries would use an exponential backoff policy rather than immediate redelivery.
+        throw new InvalidOperationException(
+            providerResult.FailureReason ?? "Payment processing failed.");
     }
 }

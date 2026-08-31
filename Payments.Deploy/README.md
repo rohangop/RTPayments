@@ -19,6 +19,8 @@ The template also creates one East US Service Bus Premium namespace with Geo-Rep
 
 The replication configuration uses synchronous mode, providing an RPO of zero for acknowledged messages. There is one active primary region at a time; the West Europe region is a hot secondary and must be promoted during a regional failover.
 
+The Function currently relies on five Service Bus delivery attempts for bounded retries. Ideally, retryable failures would use an exponential backoff policy before redelivery.
+
 The template also creates Azure SQL Database with:
 
 - An East US logical server and primary `Payments` database.
