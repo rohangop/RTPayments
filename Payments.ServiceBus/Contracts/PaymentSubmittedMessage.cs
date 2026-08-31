@@ -4,8 +4,6 @@ public sealed record PaymentSubmittedMessage
 {
     public Guid BatchId { get; init; }
     public Guid PaymentId { get; init; }
-    public string BatchReference { get; init; } = string.Empty;
-    public string PaymentReference { get; init; } = string.Empty;
     public string TreasuryAccountId { get; init; } = string.Empty;
     public string BeneficiaryName { get; init; } = string.Empty;
     public string BeneficiaryAccount { get; init; } = string.Empty;

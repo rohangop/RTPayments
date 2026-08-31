@@ -28,8 +28,6 @@ public sealed class SqlPaymentStore : IPaymentStore
 
         command.Parameters.AddWithValue("@PaymentId", payment.PaymentId);
         command.Parameters.AddWithValue("@BatchId", payment.BatchId);
-        command.Parameters.AddWithValue("@BatchReference", payment.BatchReference);
-        command.Parameters.AddWithValue("@PaymentReference", payment.PaymentReference);
         command.Parameters.AddWithValue("@TreasuryAccountId", payment.TreasuryAccountId);
         command.Parameters.AddWithValue("@BeneficiaryName", payment.BeneficiaryName);
         command.Parameters.AddWithValue("@BeneficiaryAccount", payment.BeneficiaryAccount);

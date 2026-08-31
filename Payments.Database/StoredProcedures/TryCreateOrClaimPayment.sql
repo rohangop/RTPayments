@@ -1,8 +1,6 @@
 CREATE PROCEDURE [dbo].[TryCreateOrClaimPayment]
     @PaymentId UNIQUEIDENTIFIER,
     @BatchId UNIQUEIDENTIFIER,
-    @BatchReference NVARCHAR(100),
-    @PaymentReference NVARCHAR(100),
     @TreasuryAccountId NVARCHAR(100),
     @BeneficiaryName NVARCHAR(200),
     @BeneficiaryAccount NVARCHAR(200),
@@ -32,8 +30,6 @@ BEGIN
         (
             [PaymentId],
             [BatchId],
-            [BatchReference],
-            [PaymentReference],
             [TreasuryAccountId],
             [BeneficiaryName],
             [BeneficiaryAccount],
@@ -48,8 +44,6 @@ BEGIN
         (
             @PaymentId,
             @BatchId,
-            @BatchReference,
-            @PaymentReference,
             @TreasuryAccountId,
             @BeneficiaryName,
             @BeneficiaryAccount,

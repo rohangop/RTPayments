@@ -2,7 +2,7 @@ namespace PaymentsFD.Contracts;
 
 public sealed record SubmitBatchRequest
 {
-    public string BatchReference { get; init; } = string.Empty;
+    public Guid BatchId { get; init; }
     public string TreasuryAccountId { get; init; } = string.Empty;
     public string SettlementDate { get; init; } = string.Empty;
     public List<PaymentInstruction> Payments { get; init; } = new();
@@ -10,7 +10,7 @@ public sealed record SubmitBatchRequest
 
 public sealed record PaymentInstruction
 {
-    public string PaymentReference { get; init; } = string.Empty;
+    public Guid PaymentId { get; init; }
     public string BeneficiaryName { get; init; } = string.Empty;
     public string BeneficiaryAccount { get; init; } = string.Empty;
     public string Currency { get; init; } = string.Empty;

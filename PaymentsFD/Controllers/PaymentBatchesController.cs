@@ -9,6 +9,7 @@ namespace PaymentsFD.Controllers;
 [Route("api/[controller]")]
 public class PaymentBatchesController : ControllerBase
 {
+    private const int MaximumPaymentsPerBatch = 100;
     private readonly IPaymentBatchPublisher _publisher;
 
     public PaymentBatchesController(IPaymentBatchPublisher publisher)
@@ -21,9 +22,9 @@ public class PaymentBatchesController : ControllerBase
         [FromBody] SubmitBatchRequest request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.BatchReference))
+        if (request.BatchId == Guid.Empty)
         {
-            return BadRequest(new { error = "BatchReference is required." });
+            return BadRequest(new { error = "BatchId is required." });
         }
 
         if (string.IsNullOrWhiteSpace(request.TreasuryAccountId))
@@ -36,14 +37,30 @@ public class PaymentBatchesController : ControllerBase
             return BadRequest(new { error = "At least one payment is required." });
         }
 
-        var batchId = Guid.NewGuid();
+        if (request.Payments.Count > MaximumPaymentsPerBatch)
+        {
+            return BadRequest(new
+            {
+                error = $"A batch cannot contain more than {MaximumPaymentsPerBatch} payments."
+            });
+        }
+
+        if (request.Payments.Any(payment => payment.PaymentId == Guid.Empty))
+        {
+            return BadRequest(new { error = "Every payment must include a PaymentId." });
+        }
+
+        if (request.Payments.Select(payment => payment.PaymentId).Distinct().Count() != request.Payments.Count)
+        {
+            return BadRequest(new { error = "PaymentId values must be unique within a batch." });
+        }
+
+        var batchId = request.BatchId;
         var submittedAtUtc = DateTimeOffset.UtcNow;
         var messages = request.Payments.Select(payment => new PaymentSubmittedMessage
         {
             BatchId = batchId,
-            PaymentId = Guid.NewGuid(),
-            BatchReference = request.BatchReference,
-            PaymentReference = payment.PaymentReference,
+            PaymentId = payment.PaymentId,
             TreasuryAccountId = request.TreasuryAccountId,
             BeneficiaryName = payment.BeneficiaryName,
             BeneficiaryAccount = payment.BeneficiaryAccount,

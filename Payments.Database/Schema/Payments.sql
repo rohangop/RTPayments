@@ -2,8 +2,6 @@ CREATE TABLE [dbo].[Payments]
 (
     [PaymentId] UNIQUEIDENTIFIER NOT NULL,
     [BatchId] UNIQUEIDENTIFIER NOT NULL,
-    [BatchReference] NVARCHAR(100) NOT NULL,
-    [PaymentReference] NVARCHAR(100) NOT NULL,
     [TreasuryAccountId] NVARCHAR(100) NOT NULL,
     [BeneficiaryName] NVARCHAR(200) NOT NULL,
     [BeneficiaryAccount] NVARCHAR(200) NOT NULL,
@@ -18,8 +16,6 @@ CREATE TABLE [dbo].[Payments]
     [FailureReason] NVARCHAR(1000) NULL,
 
     CONSTRAINT [PK_Payments] PRIMARY KEY ([PaymentId]),
-    CONSTRAINT [UQ_Payments_BatchPaymentReference]
-        UNIQUE ([BatchId], [PaymentReference]),
     CONSTRAINT [CK_Payments_Amount]
         CHECK ([Amount] > 0),
     CONSTRAINT [CK_Payments_Status]
