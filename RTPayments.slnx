@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="Payments.Functions/Payments.Functions.csproj" />
   <Project Path="Payments.ServiceBus/Payments.ServiceBus.csproj" />
   <Project Path="PaymentsFD/PaymentsFD.csproj" />
 </Solution>

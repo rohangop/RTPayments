@@ -2,6 +2,10 @@ targetScope = 'resourceGroup'
 
 param eastUsAppName string
 param westEuropeAppName string
+param eastUsFunctionAppName string
+param westEuropeFunctionAppName string
+param eastUsFunctionStorageName string
+param westEuropeFunctionStorageName string
 param serviceBusName string
 param paymentQueueName string = 'payments'
 
@@ -53,6 +57,106 @@ resource westEuropeApp 'Microsoft.Web/sites@2022-03-01' = {
     httpsOnly: true
     siteConfig: {
       linuxFxVersion: 'DOTNETCORE|8.0'
+    }
+  }
+}
+
+resource eastUsFunctionStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: eastUsFunctionStorageName
+  location: 'East US'
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+  }
+}
+
+resource westEuropeFunctionStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: westEuropeFunctionStorageName
+  location: 'West Europe'
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+  }
+}
+
+resource eastUsFunctionPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
+  name: '${eastUsFunctionAppName}-plan'
+  location: 'East US'
+  kind: 'functionapp'
+  sku: {
+    name: 'Y1'
+    tier: 'Dynamic'
+  }
+}
+
+resource westEuropeFunctionPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
+  name: '${westEuropeFunctionAppName}-plan'
+  location: 'West Europe'
+  kind: 'functionapp'
+  sku: {
+    name: 'Y1'
+    tier: 'Dynamic'
+  }
+}
+
+resource eastUsFunctionApp 'Microsoft.Web/sites@2022-03-01' = {
+  name: eastUsFunctionAppName
+  location: 'East US'
+  kind: 'functionapp,linux'
+  properties: {
+    serverFarmId: eastUsFunctionPlan.id
+    httpsOnly: true
+    siteConfig: {
+      linuxFxVersion: 'DOTNET-ISOLATED|8.0'
+      appSettings: [
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~4'
+        }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: 'dotnet-isolated'
+        }
+        {
+          name: 'AzureWebJobsStorage__accountName'
+          value: eastUsFunctionStorage.name
+        }
+      ]
+    }
+  }
+}
+
+resource westEuropeFunctionApp 'Microsoft.Web/sites@2022-03-01' = {
+  name: westEuropeFunctionAppName
+  location: 'West Europe'
+  kind: 'functionapp,linux'
+  properties: {
+    serverFarmId: westEuropeFunctionPlan.id
+    httpsOnly: true
+    siteConfig: {
+      linuxFxVersion: 'DOTNET-ISOLATED|8.0'
+      appSettings: [
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~4'
+        }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: 'dotnet-isolated'
+        }
+        {
+          name: 'AzureWebJobsStorage__accountName'
+          value: westEuropeFunctionStorage.name
+        }
+      ]
     }
   }
 }

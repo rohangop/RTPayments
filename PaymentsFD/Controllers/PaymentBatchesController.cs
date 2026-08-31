@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Payments.ServiceBus;
+using Payments.ServiceBus.Contracts;
 using PaymentsFD.Contracts;
 
 namespace PaymentsFD.Controllers;
@@ -7,8 +9,17 @@ namespace PaymentsFD.Controllers;
 [Route("api/[controller]")]
 public class PaymentBatchesController : ControllerBase
 {
+    private readonly IPaymentBatchPublisher _publisher;
+
+    public PaymentBatchesController(IPaymentBatchPublisher publisher)
+    {
+        _publisher = publisher;
+    }
+
     [HttpPost]
-    public ActionResult<SubmitBatchResponse> Submit([FromBody] SubmitBatchRequest request)
+    public async Task<ActionResult<SubmitBatchResponse>> Submit(
+        [FromBody] SubmitBatchRequest request,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.BatchReference))
         {
@@ -25,13 +36,31 @@ public class PaymentBatchesController : ControllerBase
             return BadRequest(new { error = "At least one payment is required." });
         }
 
+        var batchId = Guid.NewGuid();
+        var submittedAtUtc = DateTimeOffset.UtcNow;
+        var messages = request.Payments.Select(payment => new PaymentSubmittedMessage
+        {
+            BatchId = batchId,
+            PaymentId = Guid.NewGuid(),
+            PaymentReference = payment.PaymentReference,
+            TreasuryAccountId = request.TreasuryAccountId,
+            BeneficiaryName = payment.BeneficiaryName,
+            BeneficiaryAccount = payment.BeneficiaryAccount,
+            Currency = payment.Currency,
+            Amount = payment.Amount,
+            SettlementDate = request.SettlementDate,
+            SubmittedAtUtc = submittedAtUtc
+        });
+
+        await _publisher.PublishAsync(messages, cancellationToken);
+
         var response = new SubmitBatchResponse
         {
-            BatchId = Guid.NewGuid(),
+            BatchId = batchId,
             Status = "Accepted",
-            SubmittedAtUtc = DateTimeOffset.UtcNow
+            SubmittedAtUtc = submittedAtUtc
         };
 
-        return Ok(response);
+        return Accepted(response);
     }
 }
