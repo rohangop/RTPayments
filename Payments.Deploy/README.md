@@ -19,6 +19,14 @@ The template also creates one East US Service Bus Premium namespace with Geo-Rep
 
 The replication configuration uses synchronous mode, providing an RPO of zero for acknowledged messages. There is one active primary region at a time; the West Europe region is a hot secondary and must be promoted during a regional failover.
 
+The template also creates Azure SQL Database with:
+
+- An East US logical server and primary `Payments` database.
+- A West Europe logical server and passive geo-secondary database.
+- A manual SQL failover group with a stable read-write listener.
+
+Azure SQL active geo-replication is asynchronous. A regional failure can therefore lose a small number of recently committed payment entries that have not reached the secondary. If a payment was accepted externally before the database state replicated, replay or reconciliation can also result in a small number of duplicate payments. This is an acknowledged residual risk for the exercise; a production design would use provider idempotency and reconciliation to resolve ambiguous outcomes. A complete regional Azure outage is considered a rare event.
+
 ## Follow-up work
 
 - Add Azure Front Door routing for the East US and West Europe PaymentsFD apps.

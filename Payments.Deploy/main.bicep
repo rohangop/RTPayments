@@ -8,6 +8,13 @@ param eastUsFunctionStorageName string
 param westEuropeFunctionStorageName string
 param serviceBusName string
 param paymentQueueName string = 'payments'
+param primarySqlServerName string
+param secondarySqlServerName string
+param sqlDatabaseName string = 'Payments'
+param sqlAdministratorLogin string
+@secure()
+param sqlAdministratorPassword string
+param sqlFailoverGroupName string = 'payments-failover-group'
 
 resource eastUsPlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   name: '${eastUsAppName}-plan'
@@ -197,5 +204,70 @@ resource paymentQueue 'Microsoft.ServiceBus/namespaces/queues@2022-10-01-preview
     deadLetteringOnMessageExpiration: true
     requiresDuplicateDetection: true
     duplicateDetectionHistoryTimeWindow: 'PT10M'
+  }
+}
+
+resource primarySqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
+  name: primarySqlServerName
+  location: 'East US'
+  properties: {
+    administratorLogin: sqlAdministratorLogin
+    administratorLoginPassword: sqlAdministratorPassword
+    version: '12.0'
+  }
+}
+
+resource secondarySqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
+  name: secondarySqlServerName
+  location: 'West Europe'
+  properties: {
+    administratorLogin: sqlAdministratorLogin
+    administratorLoginPassword: sqlAdministratorPassword
+    version: '12.0'
+  }
+}
+
+resource primarySqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
+  parent: primarySqlServer
+  name: sqlDatabaseName
+  location: 'East US'
+  sku: {
+    name: 'S0'
+    tier: 'Standard'
+  }
+}
+
+resource secondarySqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
+  parent: secondarySqlServer
+  name: sqlDatabaseName
+  location: 'West Europe'
+  properties: {
+    createMode: 'Secondary'
+    sourceDatabaseId: primarySqlDatabase.id
+  }
+  sku: {
+    name: 'S0'
+    tier: 'Standard'
+  }
+}
+
+resource sqlFailoverGroup 'Microsoft.Sql/servers/failoverGroups@2022-05-01-preview' = {
+  parent: primarySqlServer
+  name: sqlFailoverGroupName
+  properties: {
+    databases: [
+      primarySqlDatabase.id
+    ]
+    partnerServers: [
+      {
+        id: secondarySqlServer.id
+      }
+    ]
+    readWriteEndpoint: {
+      failoverPolicy: 'Manual'
+    }
+    readOnlyEndpoint: {
+      failoverPolicy: 'Disabled'
+    }
   }
 }

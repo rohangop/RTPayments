@@ -42,6 +42,7 @@ public class PaymentBatchesController : ControllerBase
         {
             BatchId = batchId,
             PaymentId = Guid.NewGuid(),
+            BatchReference = request.BatchReference,
             PaymentReference = payment.PaymentReference,
             TreasuryAccountId = request.TreasuryAccountId,
             BeneficiaryName = payment.BeneficiaryName,
