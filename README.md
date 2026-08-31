@@ -4,6 +4,12 @@ RTPayments is an Azure-based payment batch processing solution. It accepts a bat
 
 The design uses **at-least-once delivery with durable idempotency**. It does not attempt to provide exactly-once execution across the message broker, database, and an external payment provider.
 
+## Why Service Bus is the ingestion boundary
+
+An alternative design was considered where PaymentsFD would write every payment directly to SQL and a SQL change feed would drive downstream processing. That would make SQL the initial ingestion point, but a large batch could create a burst of database writes at request time. Many concurrent submissions could therefore concentrate both ingestion and processing-state traffic on SQL before the system had a chance to smooth the workload.
+
+This design publishes payment work to Service Bus first. The queue absorbs bursts and lets Functions apply SQL writes at a controlled processing rate, protecting the database from an immediate batch-sized write spike. The tradeoff is that payment state is not visible in SQL until the worker consumes the message, and Service Bus becomes an important availability and operational dependency.
+
 ## Architecture
 
 ```text
@@ -22,6 +28,35 @@ Payments.Functions (Azure Functions)
   |
   +--> Payment provider
 ```
+
+## Availability and resilience
+
+The deployment is designed to continue accepting and processing work through a regional failure, subject to the failover actions and limitations below:
+
+```text
+                    +--> PaymentsFD - East US --+
+Client --> Front Door                            +--> Service Bus primary
+                    +--> PaymentsFD - West Europe+
+                                                        |
+                                                        v
+                                             Functions in both regions
+                                                        |
+                                                        v
+                                             Azure SQL primary database
+                                                        |
+                                                        v
+                                             SQL geo-secondary
+```
+
+- **API availability:** PaymentsFD is deployed in East US and West Europe so either region can serve requests. Azure Front Door is the intended global entry point and health-based router, but it is not yet included in the Bicep deployment.
+- **Processing availability:** Function Apps are deployed in both regions and consume from the shared replicated queue. Service Bus distributes work to available consumers, allowing the processing tier to scale independently from the API tier.
+- **Durable buffering:** The API publishes to Service Bus before returning `202 Accepted`. If Functions or SQL are temporarily unavailable, messages remain in the queue and can be retried instead of being lost in the API process.
+- **Message-store resilience:** The Service Bus Premium namespace is configured with Geo-Replication from East US to West Europe. Replication is modeled synchronously for acknowledged messages, but only one namespace region is active at a time; regional failover requires promoting the secondary.
+- **Database resilience:** Azure SQL has an East US primary and a West Europe geo-secondary behind a failover group with a stable read-write listener. SQL geo-replication is asynchronous, so the database has a non-zero disaster-recovery RPO even though the queue is modeled with zero replication lag.
+- **Failure isolation:** Each payment is a separate queue message. A failed payment is retried independently and does not block unrelated payments in the same request.
+- **Idempotent recovery:** Stable `BatchId` and `PaymentId` values, Service Bus duplicate detection, and SQL create-or-claim logic allow ambiguous client retries and message redelivery to be handled without treating the same payment as new work.
+
+This is a **disaster-recovery and at-least-once processing design**, not a claim of zero downtime or exactly-once payment execution. A regional SQL failure can lose recently committed state that has not replicated, and a provider call can succeed immediately before the worker fails. Provider-side idempotency and reconciliation are therefore required for production-grade recovery from ambiguous outcomes.
 
 The solution is organized into these projects:
 
@@ -43,6 +78,12 @@ The solution is organized into these projects:
 8. If the messages do not fit in the Service Bus batch size limit, the request is rejected rather than split across multiple sends.
 9. The API returns `202 Accepted` after the Service Bus send succeeds.
 10. Azure Functions processes each payment message independently.
+
+### Batch size tradeoff
+
+The API limits a request to 100 payments. This is an exercise-level boundary that keeps a logical request small enough to attempt as one Service Bus message batch, assuming payment messages remain around the expected payload size. The publisher still performs the authoritative `TryAddMessage` size check because 100 messages are not guaranteed to fit if individual messages become large.
+
+Keeping the request as one broker batch and one send avoids splitting a client request across multiple independent sends, which could create partial publication if a later send fails. The tradeoff is that oversized requests are rejected rather than automatically split, so clients must submit smaller batches. A production design handling larger or variable payment payloads could split work deliberately, use an ingestion message that the Functions tier expands, or use blob-backed payloads, but each option adds coordination and operational complexity.
 
 Example request:
 
